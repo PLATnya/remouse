@@ -2,17 +2,19 @@ import tkinter as tk
 from tkinter import ttk
 import config_manager
 from mouse_engine import MouseEngine
+from cursor_overlay import CursorOverlay
 
 class MouseControllerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Mouse Controller")
-        self.root.geometry("400x350")
+        self.root.geometry("400x550")
         self.root.resizable(False, False)
         
         # Load config
         self.config = config_manager.load_config()
         self.engine = MouseEngine()
+        self.overlay = CursorOverlay(self.root, self.config)
         
         # Style
         style = ttk.Style()
@@ -35,9 +37,18 @@ class MouseControllerApp:
         # Max Speed Slider
         self._create_slider(main_frame, "Max Speed", "max_speed", 10.0, 100.0)
         
+        # Rectangle Show Toggle
+        self._create_checkbox(main_frame, "Show Rectangle Cursor & Hide System Cursor", "show_rect_cursor")
+
+        # Rectangle Width Slider
+        self._create_slider(main_frame, "Rectangle Width", "rect_width", 5.0, 200.0)
+        
+        # Rectangle Height Slider
+        self._create_slider(main_frame, "Rectangle Height", "rect_height", 5.0, 200.0)
+        
         # Control Buttons Frame
         btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(pady=20)
+        btn_frame.pack(pady=10)
         
         self.start_btn = ttk.Button(btn_frame, text="Start Controller", command=self.start_engine)
         self.start_btn.pack(side=tk.LEFT, padx=10)
@@ -78,14 +89,33 @@ class MouseControllerApp:
         slider = ttk.Scale(frame, from_=min_val, to=max_val, orient=tk.HORIZONTAL, variable=val_var, command=on_change)
         slider.pack(fill=tk.X)
 
+    def _create_checkbox(self, parent, label_text, config_key):
+        frame = ttk.Frame(parent)
+        frame.pack(fill=tk.X, pady=5)
+        
+        val_var = tk.BooleanVar(value=self.config.get(config_key, True))
+        
+        def on_change():
+            self.config[config_key] = val_var.get()
+            config_manager.save_config(self.config)
+            self.overlay.update_config(self.config)
+            if self.engine.running:
+                self.engine.config = self.config
+                
+        checkbox = ttk.Checkbutton(frame, text=label_text, variable=val_var, command=on_change)
+        checkbox.pack(anchor=tk.W)
+
     def start_engine(self):
         self.engine.start()
+        self.overlay.update_config(self.config)
+        self.overlay.start()
         self.start_btn.config(state=tk.DISABLED)
         self.stop_btn.config(state=tk.NORMAL)
         self.status_var.set("Status: Running (Use Arrow Keys)")
         self.status_label.config(foreground="green")
 
     def stop_engine(self):
+        self.overlay.stop()
         self.engine.stop()
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)

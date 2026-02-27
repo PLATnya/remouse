@@ -7,7 +7,10 @@ DEFAULT_CONFIG = {
     "base_speed": 2.0,      # Initial pixels per interval
     "acceleration": 15.0,    # Pixels per second increase
     "max_speed": 40.0,      # Maximum pixels per interval
-    "update_interval": 0.01 # 100 Hz refresh rate
+    "update_interval": 0.01, # 100 Hz refresh rate
+    "rect_width": 20.0,     # Rectangle cursor width
+    "rect_height": 20.0,    # Rectangle cursor height
+    "show_rect_cursor": True # Whether the rectangle cursor overlay is active
 }
 
 def load_config() -> dict:
