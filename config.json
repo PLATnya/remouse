@@ -1,0 +1,6 @@
+{
+    "base_speed": 2.0,
+    "acceleration": 14.8,
+    "max_speed": 16.3,
+    "update_interval": 0.01
+}
