@@ -78,12 +78,38 @@ class CursorOverlay:
             self._update_loop()
             
     def _ocr_loop(self):
+        last_move_x, last_move_y = self.mouse_controller.position
+        last_ocr_x, last_ocr_y = None, None
+        stop_count = 0
+        
         while self.running:
             if not self.config.get("show_rect_cursor", True):
                 time.sleep(0.1)
                 continue
                 
             x, y = self.mouse_controller.position
+            
+            dist_from_move = (x - last_move_x)**2 + (y - last_move_y)**2
+            last_move_x, last_move_y = x, y
+            
+            if dist_from_move < 10:
+                stop_count += 1
+            else:
+                stop_count = 0
+                self.detected_rects = []
+                
+            if stop_count >= 2:
+                if last_ocr_x is not None and last_ocr_y is not None:
+                    dist_from_ocr = (x - last_ocr_x)**2 + (y - last_ocr_y)**2
+                    if dist_from_ocr < 10:
+                        time.sleep(0.1)
+                        continue
+                        
+                last_ocr_x, last_ocr_y = x, y
+            else:
+                time.sleep(0.1)
+                continue
+                
             win_x = int(x - self.width / 2)
             win_y = int(y - self.height / 2)
             
