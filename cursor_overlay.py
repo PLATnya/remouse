@@ -1,6 +1,6 @@
 import tkinter as tk
 import ctypes
-from pynput import mouse
+from pynput import mouse, keyboard
 import time
 import threading
 import sys
@@ -51,6 +51,12 @@ class CursorOverlay:
         self.drawn_rects = []
         
         self.ocr_thread = None
+        
+        self.tab_index = -1
+        self.last_programmatic_mouse_pos = None
+        self.base_rect_x, self.base_rect_y = self.mouse_controller.position
+        self.scan_win_x = 0
+        self.scan_win_y = 0
         #self.sct = mss.mss() if mss else None
 
     def update_config(self, config):
@@ -67,6 +73,10 @@ class CursorOverlay:
     def start(self):
         if not self.running:
             self.running = True
+            self.base_rect_x, self.base_rect_y = self.mouse_controller.position
+            self.keyboard_listener = keyboard.Listener(on_release=self._on_key_release)
+            self.keyboard_listener.start()
+            
             if self.config.get("show_rect_cursor", True):
                 self._hide_system_cursor()
             
@@ -77,8 +87,26 @@ class CursorOverlay:
                 
             self._update_loop()
             
+    def _on_key_release(self, key):
+        if key == keyboard.Key.tab:
+            if not self.detected_rects:
+                self.tab_index = -1
+                return
+            
+            # Sort detected rects to go left-to-right, top-to-bottom
+            sorted_rects = sorted(self.detected_rects, key=lambda r: (r['y'], r['x']))
+            
+            self.tab_index = (self.tab_index + 1) % len(sorted_rects)
+            rect = sorted_rects[self.tab_index]
+            
+            target_x = self.scan_win_x + rect['x'] + rect['w'] / 2.0
+            target_y = self.scan_win_y + rect['y'] + rect['h'] / 2.0
+            
+            self.last_programmatic_mouse_pos = (target_x, target_y)
+            self.mouse_controller.position = (target_x, target_y)
+            
     def _ocr_loop(self):
-        last_move_x, last_move_y = self.mouse_controller.position
+        last_move_x, last_move_y = self.base_rect_x, self.base_rect_y
         last_ocr_x, last_ocr_y = None, None
         stop_count = 0
         
@@ -87,7 +115,7 @@ class CursorOverlay:
                 time.sleep(0.1)
                 continue
                 
-            x, y = self.mouse_controller.position
+            x, y = self.base_rect_x, self.base_rect_y
             
             dist_from_move = (x - last_move_x)**2 + (y - last_move_y)**2
             last_move_x, last_move_y = x, y
@@ -97,6 +125,7 @@ class CursorOverlay:
             else:
                 stop_count = 0
                 self.detected_rects = []
+                self.tab_index = -1
                 
             if stop_count >= 2:
                 if last_ocr_x is not None and last_ocr_y is not None:
@@ -158,9 +187,29 @@ class CursorOverlay:
                 self._hide_system_cursor()
                 
             x, y = self.mouse_controller.position
-            # Center the rectangle on the cursor
-            win_x = int(x - self.width / 2)
-            win_y = int(y - self.height / 2)
+            
+            is_manual_move = False
+            if self.last_programmatic_mouse_pos:
+                dist_prog = (x - self.last_programmatic_mouse_pos[0])**2 + (y - self.last_programmatic_mouse_pos[1])**2
+                if dist_prog > 10:
+                    is_manual_move = True
+                    self.last_programmatic_mouse_pos = None
+            else:
+                dist_base = (x - self.base_rect_x)**2 + (y - self.base_rect_y)**2
+                if dist_base > 10:
+                    is_manual_move = True
+            
+            if is_manual_move:
+                self.base_rect_x, self.base_rect_y = x, y
+                self.tab_index = -1
+                
+            # Center the rectangle on the base rect anchor
+            win_x = int(self.base_rect_x - self.width / 2)
+            win_y = int(self.base_rect_y - self.height / 2)
+            
+            self.scan_win_x = win_x
+            self.scan_win_y = win_y
+            
             self.window.geometry(f"{int(self.width)}x{int(self.height)}+{win_x}+{win_y}")
             # Ensure topmost
             self.window.lift()
@@ -197,5 +246,7 @@ class CursorOverlay:
     def stop(self):
         self.running = False
         self._restore_system_cursor()
+        if hasattr(self, 'keyboard_listener'):
+            self.keyboard_listener.stop()
         if self.window.winfo_exists():
             self.window.withdraw()

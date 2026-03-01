@@ -4,6 +4,7 @@
     "max_speed": 30.5,
     "update_interval": 0.01,
     "rect_width": 196.0,
-    "rect_height": 200.0,
-    "show_rect_cursor": true
+    "rect_height": 191.0,
+    "show_rect_cursor": true,
+    "next_rect_key": "tab"
 }
