@@ -1,9 +1,9 @@
 {
-    "base_speed": 2.0,
-    "acceleration": 14.8,
-    "max_speed": 16.3,
+    "base_speed": 0.5,
+    "acceleration": 1.0,
+    "max_speed": 30.5,
     "update_interval": 0.01,
-    "rect_width": 200.0,
+    "rect_width": 196.0,
     "rect_height": 200.0,
     "show_rect_cursor": true
 }
