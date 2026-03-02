@@ -39,15 +39,8 @@ class MouseEngine:
     def _move_loop(self):
         while self.running:
             if self.start_time is not None:
-                # Calculate current speed based on hold duration
-                hold_duration = time.time() - self.start_time
-                base_speed = float(self.config['base_speed'])
-                acceleration = float(self.config['acceleration'])
-                max_speed = float(self.config['max_speed'])
-                
-                # Speed curve: Base + (Accel * Time)
-                current_speed = base_speed + (acceleration * hold_duration)
-                current_speed = min(current_speed, max_speed)
+                # Use constant speed (no acceleration)
+                current_speed = float(self.config['base_speed'])
                 
                 # Calculate movement delta
                 dir_x, dir_y = 0, 0

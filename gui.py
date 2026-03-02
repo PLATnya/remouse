@@ -61,12 +61,6 @@ class MouseControllerApp(QMainWindow):
         # Base Speed Slider
         self._create_slider(main_layout, "Base Sensitivity", "base_speed", 0.5, 10.0)
         
-        # Acceleration Slider
-        self._create_slider(main_layout, "Acceleration Curve", "acceleration", 1.0, 50.0)
-        
-        # Max Speed Slider
-        self._create_slider(main_layout, "Max Speed", "max_speed", 10.0, 100.0)
-        
         # Rectangle Show Toggle
         self._create_checkbox(main_layout, "Show Rectangle Cursor & Hide System Cursor", "show_rect_cursor")
         
