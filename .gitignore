@@ -10,4 +10,4 @@ env/
 .env/
 
 # Configuration (Optional, uncomment if you don't want to track config)
-# config.json
+config.json
