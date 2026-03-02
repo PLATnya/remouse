@@ -1,127 +1,182 @@
-import tkinter as tk
-from tkinter import ttk
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                             QHBoxLayout, QLabel, QSlider, QCheckBox, QPushButton,
+                             QFrame, QSizePolicy)
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtGui import QFont
 import config_manager
 from mouse_engine import MouseEngine
 from cursor_overlay import CursorOverlay
 
-class MouseControllerApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Mouse Controller")
-        self.root.geometry("400x550")
-        self.root.resizable(False, False)
+
+class MouseControllerApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
         
         # Load config
         self.config = config_manager.load_config()
         self.engine = MouseEngine()
-        self.overlay = CursorOverlay(self.root, self.config)
+        self.overlay = CursorOverlay(self.config)
         
-        # Style
-        style = ttk.Style()
-        style.theme_use('clam')
+        # Setup UI
+        self.setup_ui()
         
-        # Main frame
-        main_frame = ttk.Frame(self.root, padding="20 20 20 20")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # Handle window close - override closeEvent method
+        # Note: We store reference to call from overridden method
+        
+    def setup_ui(self):
+        self.setWindowTitle("Mouse Controller")
+        self.setFixedSize(400, 550)
+        
+        # Central widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        
+        # Main layout
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(10)
         
         # Title Label
-        title_label = ttk.Label(main_frame, text="Mouse Settings", font=("Helvetica", 16, "bold"))
-        title_label.pack(pady=(0, 20))
+        title_label = QLabel("Mouse Settings")
+        title_font = QFont("Helvetica", 16, QFont.Weight.Bold)
+        title_label.setFont(title_font)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(title_label)
+        main_layout.addSpacing(10)
         
         # Base Speed Slider
-        self._create_slider(main_frame, "Base Sensitivity", "base_speed", 0.5, 10.0)
+        self._create_slider(main_layout, "Base Sensitivity", "base_speed", 0.5, 10.0)
         
         # Acceleration Slider
-        self._create_slider(main_frame, "Acceleration Curve", "acceleration", 1.0, 50.0)
+        self._create_slider(main_layout, "Acceleration Curve", "acceleration", 1.0, 50.0)
         
         # Max Speed Slider
-        self._create_slider(main_frame, "Max Speed", "max_speed", 10.0, 100.0)
+        self._create_slider(main_layout, "Max Speed", "max_speed", 10.0, 100.0)
         
         # Rectangle Show Toggle
-        self._create_checkbox(main_frame, "Show Rectangle Cursor & Hide System Cursor", "show_rect_cursor")
-
+        self._create_checkbox(main_layout, "Show Rectangle Cursor & Hide System Cursor", "show_rect_cursor")
+        
         # Rectangle Width Slider
-        self._create_slider(main_frame, "Rectangle Width", "rect_width", 5.0, 200.0)
+        self._create_slider(main_layout, "Rectangle Width", "rect_width", 5.0, 200.0)
         
         # Rectangle Height Slider
-        self._create_slider(main_frame, "Rectangle Height", "rect_height", 5.0, 200.0)
+        self._create_slider(main_layout, "Rectangle Height", "rect_height", 5.0, 200.0)
+        
+        # Spacer
+        main_layout.addStretch()
         
         # Control Buttons Frame
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(pady=10)
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
         
-        self.start_btn = ttk.Button(btn_frame, text="Start Controller", command=self.start_engine)
-        self.start_btn.pack(side=tk.LEFT, padx=10)
+        self.start_btn = QPushButton("Start Controller")
+        self.start_btn.clicked.connect(self.start_engine)
+        btn_layout.addWidget(self.start_btn)
         
-        self.stop_btn = ttk.Button(btn_frame, text="Stop Controller", command=self.stop_engine, state=tk.DISABLED)
-        self.stop_btn.pack(side=tk.LEFT, padx=10)
+        self.stop_btn = QPushButton("Stop Controller")
+        self.stop_btn.clicked.connect(self.stop_engine)
+        self.stop_btn.setEnabled(False)
+        btn_layout.addWidget(self.stop_btn)
+        
+        btn_layout.addStretch()
+        main_layout.addLayout(btn_layout)
         
         # Status Label
-        self.status_var = tk.StringVar(value="Status: Stopped")
-        self.status_label = ttk.Label(main_frame, textvariable=self.status_var, foreground="gray")
-        self.status_label.pack(side=tk.BOTTOM)
-
-        # Handle window close
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-
-    def _create_slider(self, parent, label_text, config_key, min_val, max_val):
-        frame = ttk.Frame(parent)
-        frame.pack(fill=tk.X, pady=5)
+        self.status_var = "Status: Stopped"
+        self.status_label = QLabel(self.status_var)
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setStyleSheet("color: gray;")
+        main_layout.addWidget(self.status_label)
+        
+    def _create_slider(self, parent_layout, label_text, config_key, min_val, max_val):
+        # Container frame
+        frame = QFrame()
+        frame_layout = QVBoxLayout(frame)
+        frame_layout.setContentsMargins(0, 0, 0, 0)
+        frame_layout.setSpacing(2)
         
         # Label with current value
-        val_var = tk.DoubleVar(value=self.config[config_key])
-        label = ttk.Label(frame, text=f"{label_text}: {val_var.get():.1f}")
-        label.pack(anchor=tk.W)
+        current_val = self.config.get(config_key, (min_val + max_val) / 2)
+        self.slider_labels = getattr(self, 'slider_labels', {})
+        self.slider_vars = getattr(self, 'slider_vars', {})
         
-        def on_change(event, k=config_key, v=val_var, l=label, text=label_text):
-            current_val = round(float(v.get()), 1)
-            l.config(text=f"{text}: {current_val}")
-            self.config[k] = current_val
-            config_manager.save_config(self.config)
-            
-            # If engine is running, we might need to restart it to pick up new config cleanly
-            # Or the engine reads it on the fly. We'll let it use the saved config.
-            if self.engine.running:
-                # Hot-reload in engine
-                self.engine.config = self.config
-                
+        label = QLabel(f"{label_text}: {current_val:.1f}")
+        self.slider_labels[config_key] = label
+        frame_layout.addWidget(label)
+        
         # Slider
-        slider = ttk.Scale(frame, from_=min_val, to=max_val, orient=tk.HORIZONTAL, variable=val_var, command=on_change)
-        slider.pack(fill=tk.X)
-
-    def _create_checkbox(self, parent, label_text, config_key):
-        frame = ttk.Frame(parent)
-        frame.pack(fill=tk.X, pady=5)
+        slider = QSlider(Qt.Orientation.Horizontal)
+        slider.setMinimum(int(min_val * 10))
+        slider.setMaximum(int(max_val * 10))
+        slider.setValue(int(current_val * 10))
+        slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        slider.setTickInterval(int((max_val - min_val)))
+        slider.valueChanged.connect(
+            lambda value, k=config_key, l=label, text=label_text: self._on_slider_change(value, k, l, text)
+        )
+        self.slider_vars[config_key] = slider
+        frame_layout.addWidget(slider)
         
-        val_var = tk.BooleanVar(value=self.config.get(config_key, True))
+        parent_layout.addWidget(frame)
         
-        def on_change():
-            self.config[config_key] = val_var.get()
-            config_manager.save_config(self.config)
-            self.overlay.update_config(self.config)
-            if self.engine.running:
-                self.engine.config = self.config
-                
-        checkbox = ttk.Checkbutton(frame, text=label_text, variable=val_var, command=on_change)
-        checkbox.pack(anchor=tk.W)
-
+    def _on_slider_change(self, value, config_key, label, label_text):
+        current_val = round(value / 10.0, 1)
+        label.setText(f"{label_text}: {current_val}")
+        self.config[config_key] = current_val
+        config_manager.save_config(self.config)
+        
+        # If engine is running, hot-reload config
+        if self.engine.running:
+            self.engine.config = self.config
+            
+    def _create_checkbox(self, parent_layout, label_text, config_key):
+        frame = QFrame()
+        frame_layout = QVBoxLayout(frame)
+        frame_layout.setContentsMargins(0, 0, 0, 0)
+        
+        val = self.config.get(config_key, True)
+        
+        checkbox = QCheckBox(label_text)
+        checkbox.setChecked(val)
+        checkbox.stateChanged.connect(
+            lambda state, k=config_key: self._on_checkbox_change(state, k)
+        )
+        self.checkbox_vars = getattr(self, 'checkbox_vars', {})
+        self.checkbox_vars[config_key] = checkbox
+        frame_layout.addWidget(checkbox)
+        
+        parent_layout.addWidget(frame)
+        
+    def _on_checkbox_change(self, state, config_key):
+        value = state == Qt.CheckState.Checked.value
+        self.config[config_key] = value
+        config_manager.save_config(self.config)
+        self.overlay.update_config(self.config)
+        if self.engine.running:
+            self.engine.config = self.config
+            
     def start_engine(self):
         self.engine.start()
         self.overlay.update_config(self.config)
         self.overlay.start()
-        self.start_btn.config(state=tk.DISABLED)
-        self.stop_btn.config(state=tk.NORMAL)
-        self.status_var.set("Status: Running (Use Arrow Keys)")
-        self.status_label.config(foreground="green")
-
+        self.start_btn.setEnabled(False)
+        self.stop_btn.setEnabled(True)
+        self.status_var = "Status: Running (Use Arrow Keys)"
+        self.status_label.setText(self.status_var)
+        self.status_label.setStyleSheet("color: green;")
+        
     def stop_engine(self):
         self.overlay.stop()
         self.engine.stop()
-        self.start_btn.config(state=tk.NORMAL)
-        self.stop_btn.config(state=tk.DISABLED)
-        self.status_var.set("Status: Stopped")
-        self.status_label.config(foreground="gray")
-
+        self.start_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+        self.status_var = "Status: Stopped"
+        self.status_label.setText(self.status_var)
+        self.status_label.setStyleSheet("color: gray;")
+        
+    def closeEvent(self, event):
+        self.on_closing()
+        event.accept()
+        
     def on_closing(self):
         self.stop_engine()
-        self.root.destroy()
