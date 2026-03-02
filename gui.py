@@ -1,8 +1,22 @@
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QLabel, QSlider, QCheckBox, QPushButton,
-                             QFrame, QSizePolicy)
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
-from PyQt6.QtGui import QFont
+                             QFrame, QSizePolicy, QComboBox)
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QObject, QEvent
+from PyQt6.QtGui import QFont, QKeySequence, QShortcut
+
+
+class KeyGrabFilter(QObject):
+    keyPressed = pyqtSignal(QKeySequence)
+    
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.KeyPress:
+            key_seq = QKeySequence(event.key())
+            if key_seq.toString():  # Only emit if it's a valid key
+                self.keyPressed.emit(key_seq)
+            return True
+        return super().eventFilter(obj, event)
+
+
 import config_manager
 from mouse_engine import MouseEngine
 from cursor_overlay import CursorOverlay
@@ -61,6 +75,42 @@ class MouseControllerApp(QMainWindow):
         
         # Rectangle Height Slider
         self._create_slider(main_layout, "Rectangle Height", "rect_height", 5.0, 200.0)
+        
+        # Key Bindings Section
+        key_bindings_frame = QFrame()
+        key_bindings_layout = QVBoxLayout(key_bindings_frame)
+        key_bindings_layout.setContentsMargins(0, 5, 0, 5)
+        key_bindings_layout.setSpacing(5)
+        
+        key_bindings_label = QLabel("Key Bindings")
+        key_bindings_label.setFont(QFont("Helvetica", 10, QFont.Weight.Bold))
+        key_bindings_layout.addWidget(key_bindings_label)
+        
+        # Next Rectangle Key
+        next_key_layout = QHBoxLayout()
+        next_key_label = QLabel("Next Rectangle:")
+        current_next_key = self.config.get("next_rect_key", "Tab")
+        self.next_key_label = QLabel(current_next_key)
+        self.next_key_label.setStyleSheet("border: 1px solid gray; padding: 4px; min-width: 80px;")
+        self.next_key_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # Create a grab key button
+        self.grab_key_btn = QPushButton("Change Key")
+        self.grab_key_btn.setCheckable(True)
+        self.grab_key_btn.clicked.connect(self._toggle_key_grab)
+        
+        # Create shortcut for capturing key press
+        self.key_sequence = QKeySequence(current_next_key)
+        self.next_key_shortcut = QShortcut(self.key_sequence, self)
+        self.next_key_shortcut.activated.connect(self._on_next_key_activated)
+        
+        next_key_layout.addWidget(next_key_label)
+        next_key_layout.addWidget(self.next_key_label)
+        next_key_layout.addWidget(self.grab_key_btn)
+        next_key_layout.addStretch()
+        key_bindings_layout.addLayout(next_key_layout)
+        
+        main_layout.addWidget(key_bindings_frame)
         
         # Spacer
         main_layout.addStretch()
@@ -154,6 +204,49 @@ class MouseControllerApp(QMainWindow):
         self.overlay.update_config(self.config)
         if self.engine.running:
             self.engine.config = self.config
+            
+    def _on_next_key_changed(self, key):
+        self.config["next_rect_key"] = key
+        config_manager.save_config(self.config)
+        self.overlay.update_config(self.config)
+        if self.engine.running:
+            self.engine.config = self.config
+            
+    def _toggle_key_grab(self, checked):
+        if checked:
+            self.grab_key_btn.setText("Press a key...")
+            self.grab_key_btn.setFocus()
+            # Install event filter to capture key press
+            self.keyGrabFilter = KeyGrabFilter(self)
+            self.keyGrabFilter.keyPressed.connect(self._on_key_grabbed)
+            self.installEventFilter(self.keyGrabFilter)
+        else:
+            self.grab_key_btn.setText("Change Key")
+            self.removeEventFilter(self.keyGrabFilter)
+            self.keyGrabFilter = None
+            
+    def _on_key_grabbed(self, key_sequence):
+        key_str = key_sequence.toString()
+        self.config["next_rect_key"] = key_str
+        config_manager.save_config(self.config)
+        self.overlay.update_config(self.config)
+        if self.engine.running:
+            self.engine.config = self.config
+        
+        # Update UI
+        self.next_key_label.setText(key_str)
+        self.key_sequence = key_sequence
+        self.next_key_shortcut.setKey(key_sequence)
+        
+        # Reset button state
+        self.grab_key_btn.setChecked(False)
+        self.grab_key_btn.setText("Change Key")
+        self.removeEventFilter(self.keyGrabFilter)
+        self.keyGrabFilter = None
+    
+    def _on_next_key_activated(self):
+        # This is called when the shortcut is activated
+        pass
             
     def start_engine(self):
         self.engine.start()
