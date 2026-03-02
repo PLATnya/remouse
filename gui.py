@@ -258,6 +258,13 @@ class MouseControllerApp(QMainWindow):
         self.status_label.setText(self.status_var)
         self.status_label.setStyleSheet("color: green;")
         
+        # Disable all GUI interaction elements except Stop Controller button
+        for slider in self.slider_vars.values():
+            slider.setEnabled(False)
+        for checkbox in self.checkbox_vars.values():
+            checkbox.setEnabled(False)
+        self.grab_key_btn.setEnabled(False)
+        
     def stop_engine(self):
         self.overlay.stop()
         self.engine.stop()
@@ -266,6 +273,13 @@ class MouseControllerApp(QMainWindow):
         self.status_var = "Status: Stopped"
         self.status_label.setText(self.status_var)
         self.status_label.setStyleSheet("color: gray;")
+        
+        # Enable all GUI interaction elements
+        for slider in self.slider_vars.values():
+            slider.setEnabled(True)
+        for checkbox in self.checkbox_vars.values():
+            checkbox.setEnabled(True)
+        self.grab_key_btn.setEnabled(True)
         
     def closeEvent(self, event):
         self.on_closing()
