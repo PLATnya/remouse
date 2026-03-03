@@ -10,7 +10,9 @@ DEFAULT_CONFIG = {
     "update_interval": 0.01, # 100 Hz refresh rate
     "rect_width": 20.0,     # Rectangle cursor width
     "rect_height": 20.0,    # Rectangle cursor height
-    "show_rect_cursor": True # Whether the rectangle cursor overlay is active
+    "show_rect_cursor": True, # Whether the rectangle cursor overlay is active
+    "step_mode": False,      # Enable step-based movement (one move per key press)
+    "step_size": 10.0        # Pixels to move per key press in step mode
 }
 
 def load_config() -> dict:

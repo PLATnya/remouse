@@ -70,6 +70,24 @@ class MouseControllerApp(QMainWindow):
         # Rectangle Height Slider
         self._create_slider(main_layout, "Rectangle Height", "rect_height", 5.0, 200.0)
         
+        # Step Mode Section
+        step_mode_frame = QFrame()
+        step_mode_layout = QVBoxLayout(step_mode_frame)
+        step_mode_layout.setContentsMargins(0, 5, 0, 5)
+        step_mode_layout.setSpacing(5)
+        
+        step_mode_label = QLabel("Step Mode (One Move Per Key Press)")
+        step_mode_label.setFont(QFont("Helvetica", 10, QFont.Weight.Bold))
+        step_mode_layout.addWidget(step_mode_label)
+        
+        # Step Mode Toggle
+        self._create_checkbox(step_mode_layout, "Enable Step Mode", "step_mode")
+        
+        # Step Size Slider
+        self._create_slider(step_mode_layout, "Step Size (pixels)", "step_size", 1.0, 100.0)
+        
+        main_layout.addWidget(step_mode_frame)
+        
         # Key Bindings Section
         key_bindings_frame = QFrame()
         key_bindings_layout = QVBoxLayout(key_bindings_frame)
